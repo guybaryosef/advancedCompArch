@@ -4,3 +4,25 @@
 Replicating the GPU-SFFT algorithm from the paper: GPU-SFFT- A  GPU based parallel algorithm for computing the Sparse Fast Fourier Transform(SFFT).
 
 
+## How to Install
+
+For the CPU implementation, we use a FFT library called FFTW. To install it, you need to execute:
+
+```sh
+wget fftw.org/fftw-3.3.8.tar.gz
+
+tar -zxf fftw-3.3.8.tar.gz
+cd fftw-3.3.8
+./configure
+make
+sudo make install
+```
+
+## How to Run
+
+For the CPU version, in the cpu directory
+```sh
+make
+./gpuSfft ../inputs/small_input.txt ../outputs/small_output.txt 
+
+```
