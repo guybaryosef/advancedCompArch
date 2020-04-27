@@ -71,19 +71,14 @@ public:
                     unsigned&           IF,         // output signal length
             const   unsigned            sigma);     // constant
 
-    static int findLargestFreqCoeff(
-                    std::vector<int>&   I_L,
-            const   std::vector<int>&   dJ,
-            const   std::vector<int>&   dJ_2sig,
-            const   unsigned            n);
 
     static std::vector<int> eval(
-            const   std::vector<int>&   dI,         // an input vector
-            const   unsigned            IF,         // length of output vector
-                    std::vector<int>&   dbins_f,    // the bins vector in the freq domain
-            const   std::vector<int>&   dfilter_f,  // freq component of filter
-            const   unsigned            B,          // number of bins
-            const   unsigned            n,          // length of sfft input signal
-            const   unsigned            L,          // number of loops in outside loop
-            const   std::vector<int>&   dH_sig);    // some vector
+        const   std::vector<int>&   dI,         // an input vector
+        const   unsigned            IF,         // length of output vector
+                std::vector<int>&   dbins_f,    // the bins vector in the freq domain
+        const   std::vector<int>&   dfilter_f,  // freq component of filter
+        const   unsigned            B,          // number of bins
+        const   unsigned            n,          // length of sfft input signal
+        const   unsigned            L,          // number of loops in outside loop
+        const   std::vector<int>&   dH_sig);    // some vector
 };

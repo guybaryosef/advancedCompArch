@@ -12,12 +12,12 @@
 #include <fstream>
 
 
-#define DEFAULT_K   25
+#define DEFAULT_K   50
 #define DEFAULT_B   10
 #define DEFAULT_W   10
 #define DEFAULT_L   60
 #define DEFAULT_L_c 30
-#define DEFAULT_L_t 30
+#define DEFAULT_L_t  4
 #define DEFAULT_L_l 30
 #define FILTER_SIZE 100
 
@@ -39,7 +39,6 @@ private:
     std::string         output_name;
 
     std::vector<int>    input_vec;
-    std::vector<int>    output_vec;
     std::vector<int>    filter_t;
     std::vector<int>    filter_f;
 
@@ -48,7 +47,7 @@ public:
 
     void             loadInputVectorFromFile();
     void             createFilter();
-    void             writeOutput(const std::vector<int> &ouput_vec);
+    void             writeOutput(const std::vector<int> &output_vec);
 
     bool             isValid();
     unsigned         getB();

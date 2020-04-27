@@ -80,12 +80,17 @@ void AlgoParams::loadInputVectorFromFile()
 }
 
 
-void AlgoParams::writeOutput(const std::vector<int> &ouput_vec)
+void AlgoParams::writeOutput(const std::vector<int> &output_vec)
 {
     std::ofstream f_out(output_name);
 
-    for (const auto &ele : output_vec)
+    for (int i = 0 ; i < output_vec.size(); ++i)
+        std::cout << output_vec[i] << " ";
+
+    for (const auto ele : output_vec)
+    {
         f_out << ele << " ";
+    }
     f_out << std::endl;
 
     f_out.close();
@@ -103,7 +108,7 @@ void AlgoParams::createFilter()
         sum += gaussianFilter[i + FILTER_SIZE/2];
     }
     for (int i = 0; i < FILTER_SIZE; ++i)
-        gaussianFilter[i] = 255*(gaussianFilter[i]/255);
+        gaussianFilter[i] = 255*(gaussianFilter[i]/sum);
 
     // create the box filter
     std::vector<int> rectangularFilter(FILTER_SIZE, 0);
@@ -115,7 +120,7 @@ void AlgoParams::createFilter()
 
     for (int n=0; n<FILTER_SIZE; ++n)
         for (int m = n; m < FILTER_SIZE; ++m)
-            filter_f[n] = static_cast<int>( gaussianFilter[m] * rectangularFilter[m-n] );
+            filter_f[n] += static_cast<int>( gaussianFilter[m] * rectangularFilter[m-n] );
 
     // now take the ifft to get the time domain representation of the signal.
     double *in  = (double*) fftw_malloc(sizeof(double)*FILTER_SIZE);

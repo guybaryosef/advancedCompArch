@@ -166,26 +166,10 @@ void Algo::revHash(
     for (int i=0; i<B_t; ++i)
         dJ_2sig[i] = (dJ_2[i]*sigma) % W;
 
-    std::vector<int> I_L;
     for (int i=0; i<B_t; ++i)
-    {
-        int iL_i = findLargestFreqCoeff(I_L, dJ, dJ_2sig, n);
-
-        if (++dV[iL_i] == L_t)
-            dI[++IF] = iL_i;
-    }
+        if (++dV[dJ[i]] == L_t)
+            dI[++IF] = dJ[i];
 }
-
-int Algo::findLargestFreqCoeff(
-                std::vector<int>&   I_L,
-        const   std::vector<int>&   dJ,
-        const   std::vector<int>&   dJ_2sig,
-        const   unsigned            n)
-{
-    int iL_l = 0;
-    return iL_l;
-}
-
 
 
 std::vector<int> Algo::eval(
@@ -206,9 +190,8 @@ std::vector<int> Algo::eval(
 
         for (int j=0; j<L; ++j)
         {
-            int id = (dH_sig[j]*dI[i]) % n;
-            auto max_ele = std::max_element(dbins_f.begin(), dbins_f.end() );
-            x_prime_v[j] = *max_ele / dfilter_f[id % (n/B)];
+            int id       = (dH_sig[j]*dI[i]) % n;
+            x_prime_v[j] = dbins_f[static_cast<int>((j/L)*B)] / dfilter_f[id % (n/B)];
         }
 
         std::sort(x_prime_v.begin(), x_prime_v.end());
