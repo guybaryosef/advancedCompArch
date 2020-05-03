@@ -28,7 +28,7 @@ std::vector<int> Algo::outerLoop(
     std::vector<int> dbins_t(B,         0);
     std::vector<int> dbins_f(B,         0);
     std::vector<int> dI     (hx.size(), 0);
-    std::vector<int> dJ_2   (L_c*B_t,   0);
+    std::vector<int> dJ_2   (B_t,       0);
     std::vector<int> dH_sig (L,         0);
 
     for (int i=0; i<L_c; ++i)

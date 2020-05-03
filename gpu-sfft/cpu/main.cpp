@@ -29,7 +29,7 @@ int main(int argv, char **argc)
              algo_params.getFilter_t(),
              algo_params.getFilter_f(),
              algo_params.getB(),
-             algo_params.getK()/2,
+             2*algo_params.getK(),
              algo_params.getW(),
              algo_params.getL(),
              algo_params.getL_c(),
