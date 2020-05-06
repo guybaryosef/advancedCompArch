@@ -13,8 +13,8 @@
 
 
 #define DEFAULT_K   50
-#define DEFAULT_B   10
-#define DEFAULT_W   10
+#define DEFAULT_B   20
+#define DEFAULT_W  200
 #define DEFAULT_L   60
 #define DEFAULT_L_c 30
 #define DEFAULT_L_t  4

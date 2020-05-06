@@ -286,18 +286,26 @@ NVCCFLAGS += $(COMMONFLAGS)
 CXXFLAGS += $(COMMONFLAGS) -std=c++11 
 CFLAGS += $(COMMONFLAGS)
 
-LIB_CUDA := -L$(CUDA_PATH)/lib64 -lcudart
+LIB_CUDA := -L$(CUDA_PATH)/lib64 -lcudart -lcufft
 FFTLIB = -lfftw3 -lm
 
-OBJS = AlgoParams.o main.cu.o
+OBJS = ../utils/AlgoParams.cpp.o main.cu.o
+D_OBJS = ../utils/AlgoParams_d.cpp.o main_d.cu.o
+
 LINKLINE = $(LINK) $(OBJS) $(FFTLIB) $(COMMONFLAGS) $(LIB_CUDA)
+D_LINKLINE = $(LINK) -g $(D_OBJS) $(FFTLIB) $(COMMONFLAGS) $(LIB_CUDA)
 
 .SUFFIXES: .c .cpp .cu .o
 
 all: gpu_gpuSfft.out
 
-gpu_gpuSfft.out: $(OBJS) gpuFunctions.cu cpuFunctions.cu
+debug: debug_gpu_gpuSfft.out
+
+gpu_gpuSfft.out: $(OBJS) gpuFunctions.cu cpuFunctions.cu cpuFunctions.h
 	$(LINKLINE) -o $@
+
+debug_gpu_gpuSfft.out: $(D_OBJS) gpuFunctions.cu cpuFunctions.cu cpuFunctions.h
+	$(D_LINKLINE) -o $@
 	
 %.c.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -308,10 +316,15 @@ gpu_gpuSfft.out: $(OBJS) gpuFunctions.cu cpuFunctions.cu
 %.cpp.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-AlgoParams.o: ../utils/AlgoParams.cpp ../utils/AlgoParams.hpp
-	$(CC) $(CXXFLAGS) -c ../utils/AlgoParams.cpp
+%_d.c.o: %.c
+	$(CC) $(CFLAGS) -g -c $< -o $@
+
+%_d.cu.o: %.cu
+	$(NVCC) $(NVCCFLAGS) -g -c $< -o $@ 
+
+%_d.cpp.o: %.cpp %.hpp
+	$(CXX) $(CXXFLAGS) -g -c $< -o $@
 
 clean:
-	rm *.o 
-	rm gpu_gpuSfft.out
+	rm *.o.* ../utils/*.o *gpu_gpuSfft.out
 
