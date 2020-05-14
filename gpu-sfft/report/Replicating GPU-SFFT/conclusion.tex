@@ -1,0 +1,7 @@
+\section{Conclusion}
+
+The GPU-SFFT is a parallelized version of the very popular Sparse Fast Fourier Transform(SFFT) algorithms developed by MIT. By improving on the runtime of the SFFT algorithms, which are themselves an improvement over the standard Fast Fourier Transform implementation, the GPU-SFFT becomes a practical and important tool for many signal processing techniques.
+    
+However, we ran into much difficulty when trying to replicate the pseudo-code laid out in the paper. Some of it was on my end, lacking the algorithmic understand necessary for the implementation. However other issues were out of our hands, such as the GPU-SFFT algorithm GPUs with a higher compute capability and RAM than the Jetson Nano.
+
+Nevertheless, we believe this experience gave us a larger understanding of CUDA in general, including its different libraries, different NVIDIA GPU architectures, and the way memory is transferred between host and device.

@@ -1,0 +1,32 @@
+\section{Appendix A: Instructions}
+
+\subsection{CPU Implementation}
+For the CPU implementation, we use a FFT library called FFTW. To install it, you need to execute:
+
+\begin{verbatim}
+    wget fftw.org/fftw-3.3.8.tar.gz
+    
+    tar -zxf fftw-3.3.8.tar.gz
+    cd fftw-3.3.8
+    ./configure
+    make
+    sudo make install
+\end{verbatim}
+
+To compile and execute, run:
+\begin{verbatim}
+    make
+    ./gpuSfft ../inputs/SOME_INPUT.txt ../outputs/small_output.txt 
+\end{verbatim}
+
+
+\subsection{GPU Implementation}
+
+For the GPU implementation, we need the CUDA toolkit installed, in particular the nvcc compiler, cuFFT and thrust libraries.
+
+To compile and execute, go to the gpu/ directory and execute:
+
+\begin{verbatim}
+    make
+    ./gpu_gpuSfft.out ../inputs/SOME_INPUT.txt ../outputs/small_output.txt 
+\end{verbatim}

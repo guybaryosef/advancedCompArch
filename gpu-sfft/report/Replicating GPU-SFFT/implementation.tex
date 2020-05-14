@@ -1,0 +1,20 @@
+
+\section{Implementation}
+
+The SFFT algorithm uses a filter for its frequency binning.
+As per \cite{MIT-SFFT}, there are several possible filters to choose from. The one that we chose in our implementation is what they consider the simplest: A Gaussian filter convolved with a rectangular window. We derive this filter, as well as its time-domain representation, on the CPU for both the CPU and GPU implementations, as a preprocessing step before the MIT-SFFT algorithm begins.
+
+
+\subsection{CPU Implementation}
+The Sparse Fast Fourier Transform algorithms are a set of algorithms developed by MIT \cite{MIT-SFFT}.
+The algorithms themselves are available to the public and can be found here\footnote{https://groups.csail.mit.edu/netmit/sFFT/code.html}.
+Nevertheless, one of the goals of this project is to compare the runtimes of the CPU vs the GPU, and as such we coded a CPU-variant of the SFFT that attempts to model as closely as possible the pseudo-code of GPU-SFFT. 
+
+The only differences between our CPU implementation and the GPU implementation are:
+\begin{enumerate}
+    \item The FFT implementations: In our CPU implementation we used the open-source library FFTW (Fastest Fourier Transform in the West) \cite{FFTW}, while our GPU implementation used NVIDIA's cuFFT \cite{cuFFT}.
+    
+    \item All the parallelized loop techniques used in GPU-SFFT are transformed into sequential for-loops.
+    
+    \item Our CPU implementation uses C++'s standard template library, specifically std::sort function and std::vector, while our GPU implementation uses NVIDIA's Thrust library \cite{thrust}.
+\end{enumerate}

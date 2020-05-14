@@ -1,0 +1,66 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{alltt}
+% \usepackage{subcaption}
+\usepackage[shortlabels]{enumitem}
+\usepackage{floatrow}
+\usepackage{multirow}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage[backend=bibtex8]{biblatex}
+\usepackage{listings}
+\usepackage{xcolor}
+%\usepackage{subfig}
+\usepackage{subfigure}
+\usepackage{blindtext}
+\usepackage{amssymb}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{booktabs}
+\def\NoNumber#1{{\def\alglinenumber##1{}\State #1}\addtocounter{ALG@line}{-1}}
+\usepackage{float}
+\lstset { %
+    frame=tb, % draw a frame at the top and bottom of the code block
+    tabsize=4, % tab space width
+    showstringspaces=false, % don't mark spaces in strings
+    numbers=left, % display line numbers on the left
+    commentstyle=\color{red}, % comment color
+    keywordstyle=\color{blue}, % keyword color
+    stringstyle=\color{green}, % string color
+    breaklines=true % Fix margin stuff
+}
+\bibliography{references}
+
+\title{Replicating GPU-SFFT, a GPU based parallel algorithm for computing the Sparse Fast Fourier Transform(SFFT)}
+\author{Guy Bar Yosef}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\input{problemStatement&Motivation}
+
+\input{Introduction&Background}
+
+\input{implementation}
+
+\input{discussion} 
+
+\input{conclusion}
+
+
+\printbibliography
+
+\clearpage
+
+\input{appendixA_instructions}
+
+\end{document}

@@ -1,0 +1,33 @@
+
+\section{Introduction and Background}
+The Fast Fourier Transform (FFT) is an algorithm developed to compute the Discrete Fourier Transform with a time complexity of $O(n\ log\ n)$. 
+
+A variation of the FFT, called the Sparse Fast Fourier Transform (SFFT) was developed by MIT in a series of algorithms called MIT-SFFT described in \cite{MIT-SFFT}.
+This set of algorithms attempt to take advantage of the sparsity of signals to compute an even more computationally efficient FFT, bringing the runtime down to $O(log \ n\sqrt[3]{nk^2log\ n})$, for a signal of size $n$ with only $k$ non-zero frequency coefficients ($k<<n$).
+Even if the input signals are not sparse the MIT-SFFT algorithms will provide a sparse approximation to their FFT. 
+However these SFFT algorithms are sequential in nature and therefore not utilizing the inherent parallel nature of GPUs.
+
+Artiles and Saeed, in \cite{GPU-SFFT}, present a GPU based parallel algorithm for computing the SFFT, based on the sequential MIT-SFFT algorithms.
+Their implementation, which they call GPU-SFFT, attempts three main optimizations:
+\begin{enumerate}
+    \item To utilize the parallel execution possible in GPUs to  unroll the for-loops in MIT-SFFT as well as to ensure coalesced global memory access by the threads in each warp.
+    \item Minimize the transfer of data between the CPU and GPU.
+    \item Replace sequential sorting algorithms with the NVIDIA's Thrust library \cite{thrust} and to compute the reduced-size FFT using NVIDIA's FFT implementation, cuFFT \cite{cuFFT}.  
+\end{enumerate}
+
+Artiles and Saeed describe their paper's contribution as twofold:
+\begin{enumerate}
+    \item Proposing GPU-SFFT, the prallelized SFFT algorithm.
+    \item Showing that GPU-SFFT is a high performance algorithm without reducing the accuracy of its output, as compared to MIT-SFFT.
+\end{enumerate}
+
+In this project we attempt to replicate both of these contributions. 
+
+Artiles and Saeed provide detailed pseudo-code for GPU-SFFT's implementation. 
+Nevertheless the algorithm is relatively complex and so we hope to still gain insight into how a complex algorithm could be implemented on a GPU while taking advantage of different memory optimization techniques such as memory coalescing, shared memory, etc.
+
+
+\subsection{CUDA}
+The Compute Unified Device Architecture, or CUDA, is an API created by Nvidia to develop software that utilizes Nvidia's GPU resources. There is a C/C++ implementaion that can be compiled using Nvidia's proprietary nvcc compiler.
+
+The particular computer we used in our project is the Nvidia Jetson Nano. The Jetson Nano includes both a CPU and a GPU, allowing us to run the sequential version, MIT-SFFT, and our GPU implementation, GPU-SFFT, sequentially and compare results.

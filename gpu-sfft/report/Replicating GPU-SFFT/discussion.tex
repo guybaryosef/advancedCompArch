@@ -1,0 +1,40 @@
+
+\section{Discussion}
+
+We ran into several areas of trouble during our implementation. In our opinion, this was mostly due to the design of the paper: The paper attempted to create a parallelized GPU version of an existing algorithm, the MIT-SFFT. As such, the paper did not go into algorithmic details, choosing to skip on motivations and explinations and instead provide pseudo-code. This let us to be able to implement most of the algorithm fairly quickly, but then get bogged down in several parts that had us concluding that the pseudo-code is either inaccurate or skipping intermediate steps. 
+
+Some of the more confusing parts for us include:
+
+\begin{enumerate}
+    \item In the kernel used in the \textit{RevHash} function (algorithm 7 in the paper), the pseudocode specified the following set:
+    \begin{equation}\label{eq:1}
+        I_L = \{ i_L \in [n] | (h_\sigma(i_L) \in dJ) \cap (i_L \in dJ_{2\sigma} \}
+    \end{equation}
+    This set is supposed to be the set of indices of the largest frequency coefficients that map to J under the hash function. The specific variable details here are:
+        \begin{itemize}
+            \item $n$ is the length of the input vector.
+            \item $h_\sigma$ is the hash function which hashes to indices to bins. 
+            \item $dJ$ is the set of indices of the largest frequency coefficients of the input vector.
+            \item $dJ_{2\sigma}$ is the set of indices of the largest frequency coefficients after a preprocessing restriction.
+        \end{itemize}    
+    However it was unclear to us where we were supposed to generate these indices from. The hash function, as specified in Eq. \ref{eq:1} with the $\sigma$ subscript, was not defined in the paper previously. The paper instead provided a slightly different formulation, shown in Eq. \ref{eq:2}. Although the difference is slight, the lack of a $B$ in the subscript confuses the meaning of the hash function, especially because neither $dJ$ or $dJ2$ have $n$ elements. As such, our intuition, Eq. \ref{eq:3}, does not seem probably.
+    \begin{align}\label{eq:2}
+        h_{\sigma,B}(i) &= floor\bigg(\frac{i\sigma}{n/B}\bigg) \\[10pt]
+        \label{eq:3}
+        h_{\sigma}(i) &= floor\bigg(\frac{i\sigma}{n}\bigg)
+    \end{align}
+    We were unsure how implement this, and settled for taking the indices sequentially from $dJ$ (the set described in Eq. \ref{eq:1} is supposed to grow over the iterations). This meant that we were not using $dJ2$ at all and so we were wasting parts in other parts of the algorithm generating it, but we kept it anyways, assuming that had we understood the implementation correctly it would have been used.
+    
+    \item In the kernel part of the eval function (Algorithm 8 in the paper), there is, in our understanding, a redundant variable called $pos$. According to the pseudo-code, it seemingly replicates the value in another variable, $j$, over which a loop is performed. Moreso, the kernel specifies to use the hash function described in Eq. \ref{eq:2}, however it does not specify a $\sigma$ to use and is also under-determined.
+
+\end{enumerate}
+
+We also encountered difficulty when trying to implement unified memory. Unified memory \cite{unifiedMemory} is a concept introduced in CUDA programming as memory that can be accessed in both the host (CPU) and device (GPU). Under the hood, this 'unified' memory could be better described as 'managed' memory, as the CUDA compiler abstracts away the copying that is necessary to move the memory between the two devices (in more modern NVIDIA GPU architectures, the necessary page mapping is handled by the hardware as apposed to the software). This is hinted at by the way one creates a unified memory array: calling the \textit{cudaMallocManaged} function. 
+
+Unified memory is used twice in the provided pseudo-code, however it requires a computing capability of $6.0$ and above, while the Jetson Nano only has a computing capability of $5.3$. Therefore we bypassed it, probably at an efficiency loss, by copying the memory back and forth between the host and device.
+
+Note that this significantly hinders, if not completely nullifies, the 2nd goal of the GPU-SFFT: to minimize the transfer of data between the CPU and GPU.
+
+Finally, we were experiencing a shortage of GPU global memory. In part of the pseudocode, there is an explicit instruction to create an array of size L in one of the kernel functions. This however led to the error "too many resources expected for launch". We modified this kernel function to do without the array (seeing as we were anyways not getting realistic results and being under a time crunch). This modification essentially replaces taking a median of a set with the mean of a set.  
+
+As per all these descriptions above, we know our results to be incorrect. Not only is the  
