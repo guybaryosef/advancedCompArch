@@ -1,3 +1,8 @@
+/**
+ * cpuFunctions.cu - Function definitions of the 
+ * host-side functions that the GPU implementation 
+ * uses.
+ */
 
 
 #include <math.h>
@@ -16,6 +21,19 @@
 #include "cpuFunctions.h"
 
 
+// Error checking macro, copied from:
+// https://stackoverflow.com/questions/14038589/what-is-the-canonical-way-to-check-for-errors-using-the-cuda-runtime-api
+#define CUDA_WARN(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
+
 ///////// FUNCTION DECLERATIONS /////////
 std::vector<int> gpu_outerLoop(
     const   std::vector<int>    hx,         // input signal
@@ -30,8 +48,6 @@ std::vector<int> gpu_outerLoop(
     const   unsigned            L_t,        // loop threshold for the revHash function
     const   unsigned            L_l)        // threshold of whether or not to implement the revHash function
 {
-	cudaError_t err = cudaSuccess; // Error code to check return values for CUDA calls
-
 	// allocating and copying memory to GPU
 	int input_size = hx.size()*sizeof(int);
 
@@ -50,198 +66,88 @@ std::vector<int> gpu_outerLoop(
 	}
 
 	int *dx = nullptr;
-	err = cudaMalloc((void **)&dx, input_size);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector x (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMalloc((void **)&dx, input_size) );
 
-    err = cudaMemcpy(dx, hx_ptr, input_size, cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to copy vector x from host to device (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+    CUDA_WARN( cudaMemcpy(dx, hx_ptr, input_size, cudaMemcpyHostToDevice) );
   
 	int *dfilter_t = nullptr;
-	err = cudaMalloc((void **)&dfilter_t, fs*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector filter_t (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dfilter_t, fs*sizeof(int)) ) ;
 
-	err = cudaMemcpy(dfilter_t, hfilter_t_ptr, fs*sizeof(int), cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to copy vector filter_t from host to device (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMemcpy(dfilter_t, hfilter_t_ptr, fs*sizeof(int), cudaMemcpyHostToDevice) );
 	
 	int *dfilter_f = nullptr;
-	err = cudaMalloc((void **)&dfilter_f, fs*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector filter_f (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dfilter_f, fs*sizeof(int)) );
 	
-	err = cudaMemcpy(dfilter_f, hfilter_f_ptr, fs*sizeof(int), cudaMemcpyHostToDevice);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to copy vector filter_f from host to device (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMemcpy(dfilter_f, hfilter_f_ptr, fs*sizeof(int), cudaMemcpyHostToDevice) );
 
 	int *dbins_t = nullptr;
-	err = cudaMalloc((void **)&dbins_t, B*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector bins_t_x (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMalloc((void **)&dbins_t, B*sizeof(int)) );
 
 	int *dbins_f = nullptr;
-	err = cudaMalloc((void **)&dbins_f, B*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector bins_f (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMalloc((void **)&dbins_f, B*sizeof(int)) );
     
 	int *dI = nullptr;
-	err = cudaMalloc((void **)&dI, input_size);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector I (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMalloc((void **)&dI, input_size) );
 
 	int *dJ2 = nullptr;
-	err = cudaMalloc((void **)&dJ2, B_t*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector J_2 (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMalloc((void **)&dJ2, B_t*sizeof(int)) );
 
 	int *dH_sig = nullptr;
-	err = cudaMallocManaged((void **)&dH_sig, L*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector H_sig (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-    }
+	CUDA_WARN( cudaMalloc((void **)&dH_sig, L*sizeof(int)) );
+	int H_sig[L];
 
+	int *IF;
+	CUDA_WARN( cudaMalloc(&IF, sizeof(int)) );
+	int hIF = 0;
+	CUDA_WARN( cudaMemcpy(IF, &hIF, sizeof(int), cudaMemcpyHostToDevice) );
+	
 	// executing the algorithm
     for (int i=0; i<L_c; ++i)
         gpu_locLargeCoefGPU(dx, B_t, hx.size(), W, dJ2);
-
-	int *IF;
-	err = cudaMallocManaged(&IF, 2*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate unified memory integer IF (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
-	IF[0] = 0;
 	
     for (int i=0; i<L; ++i)
     {
 		int sigma = rand() % hx.size();
-		std::cout << "i: " << i << std::endl;
-        dH_sig[i] = modInverse(sigma, hx.size());
+        H_sig[i] = modInverse(sigma, hx.size());
 
         int *dJ = nullptr;
-		err = cudaMalloc((void **)&dJ, B_t*sizeof(int));
-		if (err != cudaSuccess)
-		{
-			std::cerr << "Failed to allocate device vector J (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-			exit(EXIT_FAILURE);
-		}
+		CUDA_WARN( cudaMalloc((void **)&dJ, B_t*sizeof(int)) );
 
-        gpu_permFilter(dx, hx.size(), dfilter_t, fs, dbins_t, B, dH_sig[i]);
+        gpu_permFilter(dx, hx.size(), dfilter_t, fs, dbins_t, B, H_sig[i]);
         gpu_fftCutoff(dJ, dbins_t, dbins_f, B, B_t);
 
         if (i < L_l)
 				gpu_revHash(dI, dJ, B_t, B, hx.size(), L_t, dJ2, W, IF, sigma);
 				
-		err = cudaFree(dJ);
-		if (err != cudaSuccess)
-		{
-			std::cerr << "Failed to free device vector J (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-			exit(EXIT_FAILURE);
-		}
+		CUDA_WARN( cudaFree(dJ) );
     }
 
-    int *output = gpu_eval(dI, IF, dbins_f, dfilter_f, B, hx.size(), L, dH_sig);
+	CUDA_WARN( cudaMemcpy(&hIF, IF, sizeof(int), cudaMemcpyDeviceToHost) );
+	
+	CUDA_WARN( cudaMemcpy(dH_sig, H_sig, L*sizeof(int), cudaMemcpyHostToDevice) );
+
+	int *output = gpu_eval(dI, hIF, dbins_f, dfilter_f, B, hx.size(), L, dH_sig);
 
 	// freeing all the GPU memory
-	err = cudaFree(dx);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector x (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dx) );
     
-	err = cudaFree(dbins_t);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector bins_t_x (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dbins_t) );
 	
-	err = cudaFree(dbins_f);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector bins_f (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dbins_f) );
 	
-	err = cudaFree(dI);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector I (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dI) );
 
-	err = cudaFree(dJ2);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector J2 (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dJ2) );
 	
-	err = cudaFree(dH_sig);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free uniform memory vector H_sig (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dH_sig) );
 
-	err = cudaFree(IF);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free uniform memory integer IF (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(IF) );
 	
-	err = cudaFree(dfilter_f);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector filter_f (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dfilter_f) );
 
-	err = cudaFree(dfilter_t);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector filter_t (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dfilter_t) );
 
-    return std::vector<int>(output, output+IF[0]);
+    return std::vector<int>(output, output + hIF);
 }
 
 
@@ -255,20 +161,10 @@ void gpu_locLargeCoefGPU(
 	cudaError_t err = cudaSuccess; // Error code to check return values for CUDA calls
 
 	int *dx_prime;
-	err = cudaMalloc((void **)&dx_prime, W*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector x_prime (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dx_prime, W*sizeof(int)) );
 	
 	int *dy_hat = nullptr;
-	err = cudaMalloc((void **)&dy_hat, W*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector y_hat (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dy_hat, W*sizeof(int)) );
 
 	int sigma = n/W;
 	int tau   = rand() % sigma;
@@ -276,25 +172,15 @@ void gpu_locLargeCoefGPU(
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch LLC_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch LLC_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
 	gpu_fftCutoff(dJ2, dx_prime, dy_hat, W, B_t);
 
-	err = cudaFree(dy_hat);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector y_hat (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dy_hat) );
 
-	err = cudaFree(dx_prime);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector x_prime (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dx_prime) );
 }
 
 
@@ -312,26 +198,16 @@ void gpu_fftCutoff(
 	int dft_batch = 1;	// number of dfts
 
 	cufftComplex *dft_output;
-	err = cudaMalloc((void**)&dft_output, sizeof(cufftComplex)*dft_length);
-	if (cudaGetLastError() != cudaSuccess)
-	{
-		std::cerr << "Cuda error: Failed to allocate dft output for cuFFT." << std::endl;
-		return;	
-	}
+	CUDA_WARN( cudaMalloc((void**)&dft_output, sizeof(cufftComplex)*dft_length) );
 
 	cufftReal *dft_input;
-	err = cudaMalloc((void**)&dft_input, sizeof(cufftReal)*n_bins);
-	if (cudaGetLastError() != cudaSuccess)
-	{
-		std::cerr << "Cuda error: Failed to allocate dft input for cuFFT." << std::endl;
-		return;	
-	}
+	CUDA_WARN( cudaMalloc((void**)&dft_input, sizeof(cufftReal)*n_bins) );
 
 	intToCureal_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dft_input, dinvec_t, n_bins);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch intToCureal_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch intToCureal_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
@@ -348,33 +224,19 @@ void gpu_fftCutoff(
 		return;	
 	}
 
-	if (cudaDeviceSynchronize() != cudaSuccess)
-	{
-		std::cerr << "Cuda error: Failed to synchronize." << std::endl;
-		return;	
-	}
+	CUDA_WARN( cudaDeviceSynchronize() );
 
 	curealToInt_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dft_output, dinvec_f, n_bins);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch curealToInt (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch curealToInt (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
-	err = cudaFree(dft_output);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector dft_output (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dft_output) );
 
-	err = cudaFree(dft_input);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector dft_input (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dft_input) );
 
 	cufftDestroy(plan);
 
@@ -391,49 +253,35 @@ void gpu_cutOff(
 	cudaError_t err = cudaSuccess; // Error code to check return values for CUDA calls
 
 	int *dsamples_s = nullptr;
-	err = cudaMalloc((void **)&dsamples_s, m*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector samples_s (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dsamples_s, m*sizeof(int)) );
 	
 	int *dsamples_I = nullptr;
-	err = cudaMalloc((void **)&dsamples_I, m*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector samples_I (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dsamples_I, m*sizeof(int)) );
 	
 	S_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(d_yhat, dsamples_s, dsamples_I, m);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch S_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch S_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
-    thrust::device_ptr<int> dsamples_s_thrust = thrust::device_pointer_cast(dsamples_s);
+	thrust::device_ptr<int> dsamples_s_thrust = thrust::device_pointer_cast(dsamples_s);
 	thrust::sort(dsamples_s_thrust, dsamples_s_thrust+m);
 	dsamples_s = thrust::raw_pointer_cast(dsamples_s_thrust);
 
-	int cutoff = dsamples_s_thrust[m-B_t-1];
-
+	int cutoff;	
+	int ind = m-B_t-1;
+	CUDA_WARN( cudaMemcpy(&cutoff, dsamples_s + ind, sizeof(int), cudaMemcpyDeviceToHost) );
 
 	int *id = nullptr;
-	err = cudaMalloc((void **)&id, sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device int id (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&id, sizeof(int)) );
 	
 	C_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dId, cutoff, dsamples_I, m, id, B_t);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch C_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch C_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
@@ -441,19 +289,9 @@ void gpu_cutOff(
 	thrust::sort(dId_thrust, dId_thrust+B_t);
 	dId = thrust::raw_pointer_cast(dId_thrust);
 
-	err = cudaFree(dsamples_s);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector samples_s (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dsamples_s) );
 
-	err = cudaFree(dsamples_I);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector samples_I (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dsamples_I) );
 }
 
 
@@ -468,12 +306,7 @@ void gpu_permFilter(
 {
 	cudaError_t err = cudaSuccess; // Error code to check return values for CUDA calls
 
-	err = cudaMemset(dbins_t, 0, B);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to set memory of device vector bins_t (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMemset(dbins_t, 0, B) );
 
 	int T = fs / B;
 	int R = fs % B;
@@ -484,7 +317,7 @@ void gpu_permFilter(
 		err = cudaGetLastError();
 		if (err != cudaSuccess)
 		{
-			std::cerr << "Failed to launch PFT_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+			std::cerr << "Failed to launch PFT_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -494,7 +327,7 @@ void gpu_permFilter(
 		err = cudaGetLastError();
 		if (err != cudaSuccess)
 		{
-			std::cerr << "Failed to launch PFK_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+			std::cerr << "Failed to launch PFK_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -516,58 +349,38 @@ void gpu_revHash(
 	cudaError_t err = cudaSuccess; // Error code to check return values for CUDA calls
 
 	int *dV = nullptr;
-	err = cudaMalloc((void **)&dV, n*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector V (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}	
+	CUDA_WARN( cudaMalloc((void **)&dV, n*sizeof(int)) );
 
-	err = cudaMemset(dV, 0, n);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to set memory of device vector V (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMemset(dV, 0, n) );
 
 	int *dJ_2sig = nullptr;
-	err = cudaMalloc((void **)&dJ_2sig, B_t*sizeof(int));
+	CUDA_WARN( cudaMalloc((void **)&dJ_2sig, B_t*sizeof(int)) );
+
+	makedJ2sig_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dJ_2sig, dJ2, B_t, sigma, W);
+	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to allocate device vector J_2sig (error code " << cudaGetErrorString(err) << ")!" << std::endl;
+		std::cerr << "Failed to launch RH_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}	
-
-	for (int i=0; i<B_t; ++i)
-		dJ_2sig[i] = (dJ2[i]*sigma) % W;
 
 	RH_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dI, dJ, dV, dJ_2sig, L_t, IF, B_t);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch RH_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch RH_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
-	err = cudaFree(dV);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector V (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dV) );
 
-	err = cudaFree(dJ_2sig);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to free device vector J_2sig (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaFree(dJ_2sig) );
 }
 
 
 int *gpu_eval(
 		const	int			   *dI, 
-		const	int			   *IF, 
+		const	int			    hIF, 
 		const	int			   *dbins_f, 
 		const	int			   *dfilter_f, 
 		const	unsigned		B, 
@@ -578,28 +391,18 @@ int *gpu_eval(
 	cudaError_t err = cudaSuccess; // Error code to check return values for CUDA calls
 
 	int *dx_hat = nullptr;
-	err = cudaMalloc((void **)&dx_hat, n*sizeof(int));
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to allocate device vector x_hat (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	CUDA_WARN( cudaMalloc((void **)&dx_hat, n*sizeof(int)) );
 
-	EV_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dx_hat, dI, IF, dbins_f, L, n, dH_sig, B, dfilter_f);
+	EV_kernel<<<BLOCKS_PER_GRID, THREADS_PER_BLOCK>>>(dx_hat, dI, hIF, dbins_f, L, n, dH_sig, B, dfilter_f);
 	err = cudaGetLastError();
 	if (err != cudaSuccess)
 	{
-		std::cerr << "Failed to launch EV_kernel (error code " << cudaGetErrorString(err) << ")!\n";
+		std::cerr << "Failed to launch EV_kernel (Error: " << cudaGetErrorString(err) << ")!\n";
 		exit(EXIT_FAILURE);
 	}
 
-	int *hx_hat = new int[IF[0]];
-	err = cudaMemcpy(hx_hat, dx_hat, IF[0]*sizeof(int), cudaMemcpyDeviceToHost);
-	if (err != cudaSuccess)
-	{
-		std::cerr << "Failed to copy vector x_hat from device to host (error code " << cudaGetErrorString(err) << ")!" << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	int *hx_hat = new int[hIF];
+	CUDA_WARN( cudaMemcpy(hx_hat, dx_hat, hIF*sizeof(int), cudaMemcpyDeviceToHost) );
 
 	return hx_hat;
 }

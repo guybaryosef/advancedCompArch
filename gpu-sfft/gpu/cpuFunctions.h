@@ -1,9 +1,18 @@
+/**
+ * cpuFunctions.h - Function declarations of the 
+ * host-side functions that the GPU implementation 
+ * uses.
+ */
 
 
+#pragma once
 
 #include <vector>
+#include <cuda_runtime.h>
+
 
 ///////// FUNCTION DEFINITIONS /////////
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true);
 
 void gpu_fftCutoff(
 			int				   *dvec,      	// input vector in freq domain after cutoff
@@ -64,7 +73,7 @@ void gpu_revHash(
 
 int *gpu_eval(
 	const	int			   *dI, 
-	const	int			   *IF, 
+	const	int			    hIF, 
 	const	int			   *dbins_f, 
 	const	int			   *dfilter_f, 
 	const	unsigned		B, 

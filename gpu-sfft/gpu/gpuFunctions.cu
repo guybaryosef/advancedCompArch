@@ -1,5 +1,9 @@
+/**
+ * gpuFunctions.cu - The CUDA kernels that the GPU
+ * implementation uses.
+ */
 
-
+ 
 #include <thrust/sort.h>
 #include <thrust/execution_policy.h>
 #include <cufft.h>
@@ -15,9 +19,11 @@ void LLC_kernel(
         const   unsigned            tau,        // constant
         const   unsigned            sigma)      // constant
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i < W)
-        dx_prime[i] = dx[tau + i*sigma];
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx < W; idx += stride)
+            dx_prime[idx] = dx[tau + idx*sigma];
 }
 
 
@@ -28,12 +34,13 @@ void S_kernel(
                 int            *dsamples_I, 
         const   unsigned        m)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
 
-    if (i < m)
+    for (int idx = start_idx; idx < m; idx += stride)
     {
-        dsamples_s[i] = d_yhat[i]*d_yhat[i];
-        dsamples_I[i] = dsamples_s[i];
+        dsamples_s[idx] = d_yhat[idx]*d_yhat[idx];
+        dsamples_I[idx] = dsamples_s[idx];
     }
 }
 
@@ -47,14 +54,12 @@ void C_kernel(
                 int            *id, 
         const   unsigned        B_t)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i < m)
-    {
-        if (dsamples_I[i] > cutoff && *id < B_t)
-        {
-            dId[atomicAdd(id, 1)] = i;
-        }
-    }
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx < m; idx += stride)
+        if (dsamples_I[idx] > cutoff && *id < B_t)
+            dId[atomicAdd(id, 1)] = idx;
 }
 
 
@@ -69,19 +74,24 @@ void PFT_kernel(
         const   int             T, 
         const   int             R)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i<B)
-        for (int j=0; j<T; ++j)
-        {
-            int id = i+B;
-            dbins_t[i] += dx[ (id*dH_sig_i) % n] * dfilt_t[id];            
-        }
-    else if (i==B)
-        for (int j=0; j<R; ++j)
-        {
-            int id = j*T + i;
-            dbins_t[j] += dx[ (id+dH_sig_i) % n] * dfilt_t[id];
-        }        
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx <=B; idx += stride)
+    {
+        if (idx < B)
+            for (int j=0; j<T; ++j)
+            {
+                int id = idx+B;
+                dbins_t[idx] += dx[ (id*dH_sig_i) % n] * dfilt_t[id];            
+            }
+        else if (idx == B)
+            for (int j=0; j<R; ++j)
+            {
+                int id = j*T + idx;
+                dbins_t[j] += dx[ (id+dH_sig_i) % n] * dfilt_t[id];
+            }        
+    }
 }
 
 
@@ -95,9 +105,11 @@ void PFK_kernel(
         const   int             dH_sig_i, 
         const   unsigned        fs)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i < fs)
-        dbins_t[i%B] += dx[ (i*dH_sig_i)%n ] * dfilt_t[i];
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx < fs; idx += stride)
+        dbins_t[idx%B] += dx[ (idx*dH_sig_i)%n ] * dfilt_t[idx];
 }
 
 
@@ -108,11 +120,29 @@ void dot(
                 int            *c,
         const   int             N)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
 
-    if (i < N)
-        atomicAdd(c, a[i]*b[i]);
+    for (int idx = start_idx; idx < N; idx += stride)
+        atomicAdd(c, a[idx]*b[idx]);
 }
+
+__global__
+void makedJ2sig_kernel(
+                int            *dJ_2sig, 
+        const   int            *dJ2, 
+        const   int             B_t,
+        const   int             sigma, 
+        const   int             W)
+{
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx < B_t; idx += stride)
+        dJ_2sig[idx] = (dJ2[idx]*sigma) % W;
+}
+
+
 
 
 __global__
@@ -125,10 +155,12 @@ void RH_kernel(
                 int            *IF, 
         const   unsigned        B_t)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i < B_t)
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx < B_t; idx += stride)
     {
-        const int i_Li = dJ[i];
+        const int i_Li = dJ[idx];
         atomicAdd(&dV[i_Li], 1);
         if (dV[i_Li] == L_t)
             dI[atomicAdd(IF,1)] = i_Li;
@@ -140,7 +172,7 @@ __global__
 void EV_kernel(
                 int            *dx_hat, 
         const   int            *dI, 
-        const   int            *IF, 
+        const   int             hIF, 
         const   int            *dbins_f, 
         const   unsigned        L, 
         const   unsigned        n, 
@@ -148,19 +180,18 @@ void EV_kernel(
         const   unsigned        B, 
         const   int            *dfilt_f)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i < IF[0])
-    {
-        int x_hat_v[DEFAULT_L];
-        for (int j=0, pos=0; j < L; ++j)
-        {
-            int id = (dH_sig[j]*dI[i]) % n;
-            x_hat_v[pos] = dbins_f[(j/L)*B] / dfilt_f[id % (n/B)];
-            ++pos;
-        }
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
 
-        thrust::sort(thrust::seq, x_hat_v, x_hat_v + L);
-        dx_hat[i] = x_hat_v[L/2];
+    for (int idx = start_idx; idx < hIF; idx += stride)
+    {        
+        int sum = 0;
+        for (int j=3; j < L; ++j)
+        {
+            int id      = (dH_sig[j]*dI[idx]) % n;
+            sum += dbins_f[(dI[idx])/(n/B)] / dfilt_f[id % (n/B)];
+        }
+        dx_hat[idx] = sum/L;
     }
 }
 
@@ -169,11 +200,13 @@ __global__
 void intToCureal_kernel(
                 cufftReal  *dft_input, 
         const   int        *dinvec_t, 
-        const   int         n_bins)
+        const   int         B)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
-    if (i < n_bins)
-        dft_input[i] = dinvec_t[i];
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
+
+    for (int idx = start_idx; idx < B; idx += stride)
+        dft_input[idx] = dinvec_t[idx];
 }
 
 
@@ -183,14 +216,14 @@ void curealToInt_kernel(
                 int            *dinvec_f, 
         const   int             N)
 {
-    int i = blockDim.x*blockIdx.x + threadIdx.x;
+    int start_idx         = blockDim.x*blockIdx.x + threadIdx.x;
+    const unsigned stride = blockDim.x * gridDim.x;
 
-    if (i < N/2+1)
+    for (int idx = start_idx; idx < N/2+1; idx += stride)
     {
-        if (N/2+i < N)
-            dinvec_f[N/2+i] = cuCabsf(dft_output[i]);
-        if (N/2-i >= 0)
-			dinvec_f[N/2-i] = cuCabsf(dft_output[i]);
+        if (N/2+idx < N)
+            dinvec_f[N/2+idx] = cuCabsf(dft_output[idx]);
+        if (N/2-idx >= 0)
+			dinvec_f[N/2-idx] = cuCabsf(dft_output[idx]);
 	}
-
 }

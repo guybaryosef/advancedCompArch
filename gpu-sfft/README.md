@@ -31,3 +31,10 @@ make
 ./gpuSfft ../inputs/small_input.txt ../outputs/small_output.txt 
 
 ```
+
+For the GPUs version, in the cpu directory
+```sh
+make
+./gpu_gpuSfft.out ../inputs/small_input.txt ../outputs/small_output.txt 
+
+```
